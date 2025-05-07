@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'package:bluetooth_led_control/bluetooth_led_service.dart';
+import 'package:bluetooth_led_control/bluetooth_service.dart';
 import 'package:bluetooth_led_control/room_selection_screen.dart';
+
+import 'bluetooth_led_service.dart';
 
 class ConnectionScreen extends StatefulWidget {
   const ConnectionScreen({Key? key}) : super(key: key);

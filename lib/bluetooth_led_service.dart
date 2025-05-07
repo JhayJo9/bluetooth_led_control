@@ -3,7 +3,20 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-
+import 'package:permission_handler/permission_handler.dart';
+Future<void> ensureBluetoothPermissions() async {
+  await [
+    Permission.bluetooth,
+    Permission.bluetoothScan,
+    Permission.bluetoothConnect,
+    Permission.locationWhenInUse,
+  ].request();
+}
+Future<bool> hasBluetoothPermissions() async {
+  final statusConnect = await Permission.bluetoothConnect.status;
+  final statusScan = await Permission.bluetoothScan.status;
+  return statusConnect.isGranted && statusScan.isGranted;
+}
 class BluetoothService with ChangeNotifier {
   FlutterBluetoothSerial _bluetooth = FlutterBluetoothSerial.instance;
   bool _isScanning = false;
@@ -33,6 +46,9 @@ class BluetoothService with ChangeNotifier {
 
   // Start scanning for devices
   Future<void> startScan() async {
+    if (!await hasBluetoothPermissions()) {
+      await ensureBluetoothPermissions();
+    }
     if (_isScanning) return;
 
     _devicesList.clear();

@@ -54,131 +54,67 @@ A Flutter application to control room LEDs connected to an Arduino using an HC-0
      flutter_bluetooth_serial: ^0.4.0
      provider: ^6.0.5
      cupertino_icons: ^1.0.5
+     permission_handler: ^11.0.1
    ```
 
-3. Run `flutter pub get` to install dependencies
+3. Run `flutter pub get` to install dependencies.
 
-### 2. Fix flutter_bluetooth_serial Package for Android 12+
+---
 
-**Critical:** The flutter_bluetooth_serial package requires fixes to work with Android 12+:
+### 2. Android 12+ Permission Fixes (Critical!)
 
-1. Locate the package in your Pub cache:
-   ```
-   C:\Users\<username>\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_bluetooth_serial-0.4.0\android\
-   ```
+**A. Add All Required Permissions to `AndroidManifest.xml`:**
 
-2. Modify `AndroidManifest.xml`:
-   - Remove `package="io.github.edufolly.flutterbluetoothserial"` from the manifest tag.
-   - Change from:
-     ```xml
-     <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-       package="io.github.edufolly.flutterbluetoothserial">
-     ```
-   - To:
-     ```xml
-     <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-     ```
-
-3. Modify `build.gradle`:
-   - Add namespace to defaultConfig section.
-   - Add this line inside the defaultConfig block:
-     ```gradle
-     namespace "io.github.edufolly.flutterbluetoothserial"
-     ```
-
-### 3. Add Required Permissions to AndroidManifest.xml
-
-Add these permissions to your app's `android/app/src/main/AndroidManifest.xml`:
+Edit `android/app/src/main/AndroidManifest.xml` and ensure you have:
 
 ```xml
 <uses-permission android:name="android.permission.BLUETOOTH" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<!-- For Android 12+ -->
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 ```
+
+**B. Request Permissions at Runtime in Flutter:**
+
+Add this to your `bluetooth_service.dart` or main logic before any Bluetooth operation:
+
+```dart
+import 'package:permission_handler/permission_handler.dart';
+
+Future<void> ensureBluetoothPermissions() async {
+  await [
+    Permission.bluetooth,
+    Permission.bluetoothScan,
+    Permission.bluetoothConnect,
+    Permission.locationWhenInUse,
+  ].request();
+}
+```
+
+Call `await ensureBluetoothPermissions();` before you scan or connect to Bluetooth!
+
+---
+
+### 3. flutter_bluetooth_serial Package Fix (for Android 12+)
+
+If you have issues building or running, patch the package:
+
+- In `android/build.gradle`, set the Android Gradle plugin to at least 7.0.0+
+- In `android/gradle/wrapper/gradle-wrapper.properties`, use Gradle 7.0.2+
+- In the plugin's `AndroidManifest.xml`, **remove any `package="..."` in the `<manifest>` tag**.
+- In the plugin's `build.gradle`, add:
+  ```gradle
+  namespace "io.github.edufolly.flutterbluetoothserial"
+  ```
+
+---
 
 ### 4. Arduino Setup
 
-1. Upload this code to your Arduino:
-
-```cpp
-const int bedroomLED = 2;   // LED for bedroom
-const int kitchenLED = 3;   // LED for kitchen
-const int livingRoomLED = 4; // LED for living room
-const int bathroomLED = 5;  // LED for bathroom
-const int connectionLED = 13; // Built-in LED for connection status
-
-String command = "";
-unsigned long lastCommandTime = 0;
-const unsigned long CONNECTION_TIMEOUT = 10000; // 10 seconds
-
-void setup() {
-  Serial.begin(9600);  
-  pinMode(bedroomLED, OUTPUT);
-  pinMode(kitchenLED, OUTPUT);
-  pinMode(livingRoomLED, OUTPUT);
-  pinMode(bathroomLED, OUTPUT);
-  pinMode(connectionLED, OUTPUT);
-  digitalWrite(bedroomLED, LOW);
-  digitalWrite(kitchenLED, LOW);
-  digitalWrite(livingRoomLED, LOW);
-  digitalWrite(bathroomLED, LOW);
-  digitalWrite(connectionLED, LOW);
-}
-
-void loop() {
-  if (Serial.available() > 0) {
-    char c = Serial.read();
-    lastCommandTime = millis(); 
-    digitalWrite(connectionLED, HIGH); 
-    if (c != '\n') {
-      command += c;
-    } else {
-      processCommand(command);
-      command = ""; 
-    }
-  }
-  if (millis() - lastCommandTime > CONNECTION_TIMEOUT) {
-    if (digitalRead(connectionLED) == HIGH) {
-      digitalWrite(connectionLED, LOW);
-      turnOffAllLights();
-      Serial.println("Connection timeout - all lights turned off");
-    }
-  }
-}
-
-void processCommand(String cmd) {
-  cmd.trim();
-  if (cmd == "BR_ON") digitalWrite(bedroomLED, HIGH);
-  else if (cmd == "BR_OFF") digitalWrite(bedroomLED, LOW);
-  else if (cmd == "KT_ON") digitalWrite(kitchenLED, HIGH);
-  else if (cmd == "KT_OFF") digitalWrite(kitchenLED, LOW);
-  else if (cmd == "LR_ON") digitalWrite(livingRoomLED, HIGH);
-  else if (cmd == "LR_OFF") digitalWrite(livingRoomLED, LOW);
-  else if (cmd == "BT_ON") digitalWrite(bathroomLED, HIGH);
-  else if (cmd == "BT_OFF") digitalWrite(bathroomLED, LOW);
-  else if (cmd == "ALL_ON") {
-    digitalWrite(bedroomLED, HIGH);
-    digitalWrite(kitchenLED, HIGH);
-    digitalWrite(livingRoomLED, HIGH);
-    digitalWrite(bathroomLED, HIGH);
-  }
-  else if (cmd == "ALL_OFF") turnOffAllLights();
-}
-
-void turnOffAllLights() {
-  digitalWrite(bedroomLED, LOW);
-  digitalWrite(kitchenLED, LOW);
-  digitalWrite(livingRoomLED, LOW);
-  digitalWrite(bathroomLED, LOW);
-}
-```
-
-2. **Important:** Disconnect the RX/TX pins from Arduino before uploading, then reconnect after upload is complete.
-
-3. Make sure to pair the HC-05 with your Android device in Bluetooth settings before running the app.
+See `arduino_led_control.ino` for pin mapping and serial command handling.
 
 ---
 
@@ -199,32 +135,35 @@ void turnOffAllLights() {
 
 ---
 
-## 🔍 Troubleshooting
+## ❗ Troubleshooting
 
-1. **App crashes on startup:**
-   - Check that you've applied the `flutter_bluetooth_serial` fixes correctly.
-   - Ensure all required permissions are in AndroidManifest.xml.
+- **App crashes or closes after permission prompt:**
+   - Make sure you request Bluetooth permissions at runtime using `permission_handler`.
+   - Make sure ALL required permissions are in your Manifest.
+   - Reinstall the app after making Manifest changes.
 
-2. **Cannot find HC-05 module:**
-   - Ensure HC-05 is powered (red LED should be on).
-   - Pair HC-05 with your phone in Bluetooth settings first.
-   - Default pairing code is usually 1234 or 0000.
+- **Gradle build fails:**
+   - Check your internet connection and proxy/firewall.
+   - Update Gradle and the Android Gradle Plugin to recent versions.
+   - Run `flutter clean` and `flutter pub get`.
 
-3. **Cannot connect to HC-05:**
-   - Restart the HC-05 module.
-   - Ensure the Arduino is powered and properly connected.
-   - Try re-pairing the device.
+- **Cannot find HC-05 module:**
+   - Pair the module in device Bluetooth settings first.
+   - Default code is 1234 or 0000.
 
-4. **LEDs not responding:**
-   - Check Arduino wiring.
-   - Verify serial communication at 9600 baud rate.
-   - Test LEDs directly with a simple Arduino test sketch.
+- **Cannot connect to HC-05:**
+   - Restart the module and your phone.
+   - Check wiring.
+
+- **LEDs not responding:**
+   - Check Arduino wiring and test LEDs directly.
 
 ---
 
 ## ⚠️ Known Issues
 
 - The flutter_bluetooth_serial package may have issues with some Android 12+ devices.
-- Some Samsung/Xiaomi/OnePlus devices may require additional Bluetooth permission handling or battery settings.
-- Some HC-05 modules have different pin configurations, or may need a voltage divider for the RX pin.
+- Some phones may require additional Bluetooth permission handling.
 - When uploading code to Arduino, always disconnect HC-05 RX/TX pins.
+
+---
