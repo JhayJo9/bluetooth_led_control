@@ -1,0 +1,23 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 31d353e..45c7bde 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -34,6 +34,7 @@ android {
+     compileSdkVersion 31
+
+     defaultConfig {
++        namespace "io.github.edufolly.flutterbluetoothserial"
+         minSdkVersion 19
+         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+     }
+diff --git a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManifest.xml
+index d12a13e..e3f28b6 100644
+--- a/android/src/main/AndroidManifest.xml
++++ b/android/src/main/AndroidManifest.xml
+@@ -1,5 +1,4 @@
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-  package="io.github.edufolly.flutterbluetoothserial">
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+     <uses-permission android:name="android.permission.BLUETOOTH" />
+     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
