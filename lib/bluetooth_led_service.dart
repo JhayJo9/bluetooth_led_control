@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 Future<void> ensureBluetoothPermissions() async {
   await [
     Permission.bluetooth,
@@ -12,11 +13,13 @@ Future<void> ensureBluetoothPermissions() async {
     Permission.locationWhenInUse,
   ].request();
 }
+
 Future<bool> hasBluetoothPermissions() async {
   final statusConnect = await Permission.bluetoothConnect.status;
   final statusScan = await Permission.bluetoothScan.status;
   return statusConnect.isGranted && statusScan.isGranted;
 }
+
 class BluetoothService with ChangeNotifier {
   FlutterBluetoothSerial _bluetooth = FlutterBluetoothSerial.instance;
   bool _isScanning = false;
@@ -25,27 +28,96 @@ class BluetoothService with ChangeNotifier {
   BluetoothDevice? _connectedDevice;
   BluetoothConnection? _connection;
 
+  // Add bluetooth state tracking
+  BluetoothState _bluetoothState = BluetoothState.UNKNOWN;
+  bool _isBluetoothAvailable = false;
+
   // Getters
   bool get isScanning => _isScanning;
   bool get isConnected => _isConnected;
   List<BluetoothDevice> get devicesList => _devicesList;
   BluetoothDevice? get connectedDevice => _connectedDevice;
+  BluetoothState get bluetoothState => _bluetoothState;
+  bool get isBluetoothAvailable => _isBluetoothAvailable;
+  bool get isBluetoothOn => _bluetoothState == BluetoothState.STATE_ON;
 
   // Initialize Bluetooth
   Future<void> initBluetooth() async {
     try {
-      // Request Bluetooth permissions if needed
+      // First check if Bluetooth is available on this device
+      _isBluetoothAvailable = await _bluetooth.isAvailable ?? false;
+
+      if (!_isBluetoothAvailable) {
+        print('Bluetooth is not available on this device');
+        notifyListeners();
+        return;
+      }
+
+      // Get current bluetooth state
+      _bluetoothState = await _bluetooth.state;
+
+      // Listen for state changes
+      _bluetooth.onStateChanged().listen((state) {
+        _bluetoothState = state;
+        print('Bluetooth state changed to: $state');
+
+        if (state == BluetoothState.STATE_OFF) {
+          // Clean up any active scanning/connection when BT is turned off
+          _isScanning = false;
+          if (_isConnected && _connection != null) {
+            _connection!.close();
+            _isConnected = false;
+            _connectedDevice = null;
+            _connection = null;
+          }
+        }
+
+        notifyListeners();
+      });
+
+      // Check if Bluetooth is enabled
       bool? isEnabled = await _bluetooth.isEnabled;
       if (isEnabled == false) {
-        await _bluetooth.requestEnable();
+        // We'll let the UI handle prompting the user
+        print('Bluetooth is off. User needs to enable it.');
       }
+
+      notifyListeners();
     } catch (e) {
       print('Error initializing Bluetooth: $e');
     }
   }
 
-  // Start scanning for devices
+  // Request to enable Bluetooth
+  Future<bool> requestEnable() async {
+    if (!_isBluetoothAvailable) return false;
+
+    try {
+      return await _bluetooth.requestEnable() ?? false;
+    } catch (e) {
+      print('Error requesting Bluetooth enable: $e');
+      return false;
+    }
+  }
+
+  // Start scanning for devices with safety checks
   Future<void> startScan() async {
+    // Check if Bluetooth is available and enabled
+    if (!_isBluetoothAvailable) {
+      print('Bluetooth is not available');
+      return;
+    }
+
+    bool? isEnabled = await _bluetooth.isEnabled;
+    if (isEnabled != true) {
+      print('Bluetooth is not enabled');
+      bool? enabled = await _bluetooth.requestEnable();
+      if (enabled != true) {
+        print('User declined to enable Bluetooth');
+        return;
+      }
+    }
+
     if (!await hasBluetoothPermissions()) {
       await ensureBluetoothPermissions();
     }
@@ -88,6 +160,7 @@ class BluetoothService with ChangeNotifier {
     }
   }
 
+  // The rest of your methods remain unchanged
   // Stop scanning
   Future<void> stopScan() async {
     if (!_isScanning) return;

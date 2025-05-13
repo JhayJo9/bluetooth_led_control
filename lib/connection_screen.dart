@@ -26,6 +26,73 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   Widget build(BuildContext context) {
     final bluetoothService = Provider.of<BluetoothService>(context);
 
+    // Check if Bluetooth is available or enabled
+    if (!bluetoothService.isBluetoothAvailable) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Connect to HC-05'),
+          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        ),
+        body: Container(
+          color: const Color.fromARGB(255, 92, 85, 85),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bluetooth_disabled, size: 80, color: Colors.red),
+                SizedBox(height: 16),
+                Text(
+                  'Bluetooth is not available on this device',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Check if Bluetooth is turned off - NO BUTTON, just informational message
+    if (bluetoothService.bluetoothState == BluetoothState.STATE_OFF) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Connect to HC-05'),
+          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        ),
+        body: Container(
+          color: const Color.fromARGB(255, 92, 85, 85),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.bluetooth_disabled, size: 80, color: Colors.orange),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Text(
+                    'Please turn on Bluetooth in your device settings before using this app',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: const Text(
+                    'Go to Settings → Bluetooth → Turn on',
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Original UI when Bluetooth is on and available
     return Scaffold(
       appBar: AppBar(
         title: const Text('Connect to HC-05'),
@@ -80,11 +147,11 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     return ListTile(
                       title: Text(
                         device.name ?? 'Unknown Device',
-                        style: const TextStyle(color: Colors.blue), // Custom font color
+                        style: const TextStyle(color: Colors.blue),
                       ),
                       subtitle: Text(
                         device.address,
-                        style: const TextStyle(color: Colors.white), // Custom font color
+                        style: const TextStyle(color: Colors.white),
                       ),
                       trailing: ElevatedButton(
                         onPressed: () async {
